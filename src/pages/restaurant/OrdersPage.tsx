@@ -1,13 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Import useEffect
 import { Filter } from 'lucide-react';
 import useOrderStore from '../../store/orderStore';
 import OrderCard from '../../components/OrderCard';
 import { OrderStatus } from '../../types';
 
 const OrdersPage: React.FC = () => {
-  const { orders, updateOrderStatus } = useOrderStore();
+  const { orders, updateOrderStatus, fetchOrders } = useOrderStore(); // Get fetchOrders
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
   
+  // Fetch orders when the component mounts
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]); // Depend on fetchOrders
+
   // Filter and sort orders by creation date (newest first)
   const filteredOrders = orders
     .filter((order) => statusFilter === 'All' || order.status === statusFilter)

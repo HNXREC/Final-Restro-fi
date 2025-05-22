@@ -34,15 +34,17 @@ const useOrderStore = create<OrderState>()(
           console.error('Error fetching orders:', error);
           toast.error(`Failed to fetch orders: ${error.message}`);
         } else {
+          console.log('Fetched orders data:', data); // Log fetched data
           // Map Supabase data to your Order type if necessary
           const fetchedOrders: Order[] = data.map(item => ({
              id: item.id,
-             tableNumber: item.tableNumber, // Adjust field names if different in Supabase
+             tableNumber: item.table_number, // Corrected field name to match Supabase schema
              items: item.items, // Assuming items are stored as JSONB or similar
              status: item.status as OrderStatus, // Cast to OrderStatus type
-             totalAmount: item.totalAmount, // Adjust field names if different
-             createdAt: item.created_at, // Adjust field names if different
+             totalAmount: item.total_amount, // Corrected field name to match Supabase schema
+             createdAt: item.created_at, // Adjust field names if different in Supabase
           }));
+          console.log('Mapped orders:', fetchedOrders); // Log mapped data
           set({ orders: fetchedOrders, isLoading: false, error: null });
         }
       },
@@ -51,10 +53,10 @@ const useOrderStore = create<OrderState>()(
       addOrder: async (tableNumber, items, total) => {
         set({ isLoading: true, error: null });
         const newOrderData = {
-          tableNumber,
+          table_number: tableNumber, // Corrected column name to match Supabase schema
           items, // Assuming items can be stored directly (e.g., JSONB)
           status: 'Pending', // Initial status
-          totalAmount: total,
+          total_amount: total, // Corrected column name to match Supabase schema
           // Supabase will automatically add created_at if configured
         };
 
@@ -72,10 +74,10 @@ const useOrderStore = create<OrderState>()(
            // Map Supabase inserted data to your Order type
            const addedOrder: Order = {
               id: data[0].id,
-              tableNumber: data[0].tableNumber,
+              tableNumber: data[0].table_number, // Corrected field name
               items: data[0].items,
               status: data[0].status as OrderStatus,
-              totalAmount: data[0].totalAmount,
+              totalAmount: data[0].total_amount, // Corrected field name
               createdAt: data[0].created_at,
            };
           set((state) => ({
