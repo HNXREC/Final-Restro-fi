@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Import useEffect
 import { PlusCircle, Pencil, Trash, Search } from 'lucide-react';
 import useMenuStore from '../../store/menuStore';
 import MenuItemForm from '../../components/MenuItemForm';
@@ -6,13 +6,19 @@ import { MenuItem } from '../../types';
 import { formatPrice } from '../../utils/format';
 
 const MenuManagementPage: React.FC = () => {
-  const { menuItems, categories, addMenuItem, updateMenuItem, deleteMenuItem } = useMenuStore();
+  const { menuItems, categories, addMenuItem, updateMenuItem, deleteMenuItem, fetchMenuItems, fetchCategories } = useMenuStore(); // Get fetch functions
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   
+  // Fetch menu items and categories when the component mounts
+  useEffect(() => {
+    fetchMenuItems();
+    fetchCategories();
+  }, [fetchMenuItems, fetchCategories]); // Depend on fetch functions
+
   const handleAddItem = () => {
     setEditingItem(null);
     setShowForm(true);
