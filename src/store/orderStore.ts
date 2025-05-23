@@ -12,6 +12,9 @@ type OrderState = {
   addOrder: (tableNumber: number, items: CartItem[], total: number) => Promise<string | undefined>;
   updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>;
   getOrderById: (id: string) => Order | undefined; // Keep for local state access
+  subscription: any | null; // Type for Supabase subscription
+  startRealtimeSubscription: () => void;
+  stopRealtimeSubscription: () => void;
 };
 
 const useOrderStore = create<OrderState>()(
@@ -20,10 +23,42 @@ const useOrderStore = create<OrderState>()(
       orders: [],
       isLoading: false,
       error: null,
+      subscription: null,
+
+      startRealtimeSubscription: () => {
+        // Prevent multiple subscriptions
+        if (get().subscription) {
+          console.log('Realtime subscription already active.');
+          return;
+        }
+
+        console.log('Starting realtime subscription...');
+        const subscription = supabase
+          .channel('orders') // Choose a channel name
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, payload => {
+            console.log('Change received!', payload);
+            // Fetch all orders again to ensure state is fully consistent after any change
+            // This is simpler than trying to merge INSERT/UPDATE/DELETE payloads manually
+            get().fetchOrders();
+          })
+          .subscribe();
+
+        set({ subscription });
+      },
+
+      stopRealtimeSubscription: () => {
+        const { subscription } = get();
+        if (subscription) {
+          console.log('Stopping realtime subscription...');
+          supabase.removeChannel(subscription);
+          set({ subscription: null });
+        }
+      },
 
       // Fetch orders from Supabase
       fetchOrders: async () => {
         set({ isLoading: true, error: null });
+        console.log('Fetching orders...');
         const { data, error } = await supabase
           .from('orders') // Assuming your table name is 'orders'
           .select('*')
@@ -34,7 +69,7 @@ const useOrderStore = create<OrderState>()(
           console.error('Error fetching orders:', error);
           toast.error(`Failed to fetch orders: ${error.message}`);
         } else {
-          console.log('Fetched orders data:', data); // Log fetched data
+          console.log('Raw data from Supabase:', data); // Log raw data
           // Map Supabase data to your Order type if necessary
           const fetchedOrders: Order[] = data.map(item => ({
              id: item.id,
@@ -44,7 +79,7 @@ const useOrderStore = create<OrderState>()(
              totalAmount: item.total_amount, // Corrected field name to match Supabase schema
              createdAt: item.created_at, // Adjust field names if different in Supabase
           }));
-          console.log('Mapped orders:', fetchedOrders); // Log mapped data
+          console.log('Mapped data for store:', fetchedOrders); // Log mapped data
           set({ orders: fetchedOrders, isLoading: false, error: null });
         }
       },
@@ -80,11 +115,13 @@ const useOrderStore = create<OrderState>()(
               totalAmount: data[0].total_amount, // Corrected field name
               createdAt: data[0].created_at,
            };
-          set((state) => ({
-            orders: [addedOrder, ...state.orders], // Add to the beginning for newest first
-            isLoading: false,
-            error: null,
-          }));
+          // Realtime subscription should handle adding the order to the state
+          // set((state) => ({
+          //   orders: [addedOrder, ...state.orders], // Add to the beginning for newest first
+          //   isLoading: false,
+          //   error: null,
+          // }));
+          set({ isLoading: false, error: null }); // Just update loading state
           toast.success('Order placed successfully!');
           return addedOrder.id; // Return the new order ID
         } else {
@@ -108,13 +145,15 @@ const useOrderStore = create<OrderState>()(
           console.error('Error updating order status:', error);
           toast.error(`Failed to update order status: ${error.message}`);
         } else if (data && data.length > 0) {
-          set((state) => ({
-            orders: state.orders.map((order) =>
-              order.id === id ? (data[0] as Order) : order // Update the order in local state
-            ),
-            isLoading: false,
-            error: null,
-          }));
+          // Realtime subscription should handle updating the order in the state
+          // set((state) => ({
+          //   orders: state.orders.map((order) =>
+          //     order.id === id ? (data[0] as Order) : order // Update the order in local state
+          //   ),
+          //   isLoading: false,
+          //   error: null,
+          // }));
+           set({ isLoading: false, error: null }); // Just update loading state
           toast.success(`Order status updated to ${status}!`);
         } else {
            set({ isLoading: false, error: 'Failed to update order status.' });
@@ -131,14 +170,26 @@ const useOrderStore = create<OrderState>()(
       name: 'order-storage',
       // Don't persist orders, fetch them on load
       partialize: (state) => ({}),
-      // Fetch data on rehydration
+      // Fetch data and start subscription on rehydration
       onRehydrateStorage: () => {
-         return (state, get) => {
-            (get as () => OrderState)().fetchOrders();
+         return (state, error) => {
+            if (state) {
+               const store = useOrderStore.getState();
+               store.fetchOrders().then(() => {
+                  // Start subscription after initial fetch is complete
+                  store.startRealtimeSubscription();
+               });
+            }
+            if (error) {
+               console.error('Rehydration error:', error);
+            }
          };
       },
     }
   )
 );
+
+// Ensure subscription is started when the store is initialized
+useOrderStore.getState().startRealtimeSubscription();
 
 export default useOrderStore;

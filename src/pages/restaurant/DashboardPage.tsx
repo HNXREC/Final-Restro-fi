@@ -31,10 +31,14 @@ const DashboardPage: React.FC = () => {
   // Calculate total revenue
   const totalRevenue = orders
     .filter(o => o.status === 'Served')
-    .reduce((sum, order) => sum + order.totalAmount, 0);
+    .reduce((sum, order) => {
+      // Add checks for order.totalAmount
+      return sum + (order.totalAmount || 0);
+    }, 0);
   
-  // Get recent orders
+  // Get recent orders, filter out orders with invalid data for display
   const recentOrders = [...orders]
+    .filter(order => order.createdAt && order.items?.length > 0 && order.tableNumber != null && (order.totalAmount != null && !isNaN(order.totalAmount))) // Filter out orders with missing essential data
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
   
@@ -256,7 +260,7 @@ const DashboardPage: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           <p className="text-sm font-medium text-burgundy-600 truncate">
-                            Table #{order.tableNumber}
+                            {order.tableNumber != null ? `Table #${order.tableNumber}` : 'Unknown Table'}
                           </p>
                           <div className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                             ${order.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' : 
@@ -268,13 +272,13 @@ const DashboardPage: React.FC = () => {
                           </div>
                         </div>
                         <div className="text-sm text-gray-900 font-medium">
-                          {formatPrice(order.totalAmount)}
+                          {formatPrice(order.totalAmount || 0)}
                         </div>
                       </div>
                       <div className="mt-2 flex justify-between">
                         <div className="flex items-center text-sm text-gray-500">
                           <p>
-                            {order.items.length} items • {new Date(order.createdAt).toLocaleTimeString()}
+                            {order.items?.reduce((acc, item) => acc + (item.quantity || 0), 0) || 0} items • {order.createdAt ? new Date(order.createdAt).toLocaleTimeString() : 'Invalid Date'}
                           </p>
                         </div>
                       </div>

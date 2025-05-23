@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import useAuthStore from './store/authStore';
+import useOrderStore from './store/orderStore';
 
 // Layout Components
 import Navbar from './components/Navbar';
@@ -31,6 +32,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
+  useEffect(() => {
+    // Start the real-time subscription when the component mounts
+    useOrderStore.getState().startRealtimeSubscription();
+
+    // Stop the real-time subscription when the component unmounts
+    return () => {
+      useOrderStore.getState().stopRealtimeSubscription();
+    };
+  }, []); // Empty dependency array ensures this runs only on mount and unmount
+
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
