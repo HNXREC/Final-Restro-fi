@@ -52,7 +52,7 @@ const DashboardPage: React.FC = () => {
             Welcome back, {user?.name}!
           </h2>
           <p className="text-sm text-gray-500">
-            Ajay Sweet House Dashboard
+            Restro-fi Dashboard
           </p>
         </div>
         

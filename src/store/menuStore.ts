@@ -11,8 +11,10 @@ type MenuState = {
   error: string | null;
   fetchMenuItems: () => Promise<void>;
   fetchCategories: () => Promise<void>;
-  addMenuItem: (item: Omit<MenuItem, 'id'>) => Promise<void>;
-  updateMenuItem: (id: string, item: Partial<MenuItem>) => Promise<void>;
+  // Update addMenuItem signature to accept imageFile
+  addMenuItem: (item: Omit<MenuItem, 'id'>, imageFile?: File | null) => Promise<void>;
+  // Update updateMenuItem signature to potentially accept imageFile
+  updateMenuItem: (id: string, item: Partial<MenuItem>, imageFile?: File | null) => Promise<void>;
   deleteMenuItem: (id: string) => Promise<void>;
   addCategory: (category: Omit<Category, 'id'>) => Promise<void>;
   updateCategory: (id: string, name: string) => Promise<void>;
@@ -60,11 +62,42 @@ const useMenuStore = create<MenuState>()(
       },
 
       // Add a new menu item to Supabase
-      addMenuItem: async (item) => {
+      addMenuItem: async (itemData, imageFile) => {
         set({ isLoading: true, error: null });
+        let imageUrl = itemData.image; // Start with the provided image URL (might be empty)
+
+        if (imageFile) {
+          // Upload image to Supabase Storage
+          const fileExt = imageFile.name.split('.').pop();
+          const fileName = `${Date.now()}.${fileExt}`; // Simple unique file name
+          const filePath = `menu_images/${fileName}`; // Folder and file name
+
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('menu-images') // Replace with your Supabase Storage bucket name
+            .upload(filePath, imageFile, {
+              cacheControl: '3600',
+              upsert: false,
+            });
+
+          if (uploadError) {
+            set({ error: uploadError.message, isLoading: false });
+            console.error('Error uploading image:', uploadError);
+            toast.error(`Failed to upload image: ${uploadError.message}`);
+            return; // Stop if upload fails
+          }
+
+          // Get the public URL of the uploaded image
+          const { data: publicUrlData } = supabase.storage
+            .from('menu-images') // Replace with your Supabase Storage bucket name
+            .getPublicUrl(filePath);
+
+          imageUrl = publicUrlData.publicUrl;
+        }
+
+        // Insert menu item data into the database
         const { data, error } = await supabase
           .from('menu_items')
-          .insert([item])
+          .insert([{ ...itemData, image: imageUrl }]) // Use the uploaded image URL
           .select(); // Select the inserted data to get the generated ID
 
         if (error) {
@@ -85,11 +118,46 @@ const useMenuStore = create<MenuState>()(
       },
 
       // Update an existing menu item in Supabase
-      updateMenuItem: async (id, updatedItem) => {
+      updateMenuItem: async (id, updatedItemData, imageFile) => {
         set({ isLoading: true, error: null });
+        let imageUrl = updatedItemData.image; // Start with the provided image URL
+
+        if (imageFile) {
+          // Upload new image to Supabase Storage
+          const fileExt = imageFile.name.split('.').pop();
+          const fileName = `${Date.now()}.${fileExt}`; // Simple unique file name
+          const filePath = `menu_images/${fileName}`; // Folder and file name
+
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('menu-images') // Replace with your Supabase Storage bucket name
+            .upload(filePath, imageFile, {
+              cacheControl: '3600',
+              upsert: false, // Set to true if you want to overwrite existing files with the same name
+            });
+
+          if (uploadError) {
+            set({ error: uploadError.message, isLoading: false });
+            console.error('Error uploading new image:', uploadError);
+            toast.error(`Failed to upload new image: ${uploadError.message}`);
+            return; // Stop if upload fails
+          }
+
+          // Get the public URL of the newly uploaded image
+          const { data: publicUrlData } = supabase.storage
+            .from('menu-images') // Replace with your Supabase Storage bucket name
+            .getPublicUrl(filePath);
+
+          imageUrl = publicUrlData.publicUrl;
+
+          // Optional: Delete the old image from storage if it exists and is different
+          // This requires knowing the old image path, which might be stored in the database
+          // For simplicity, we'll skip deleting the old image in this basic implementation
+        }
+
+        // Update menu item data in the database
         const { data, error } = await supabase
           .from('menu_items')
-          .update(updatedItem)
+          .update({ ...updatedItemData, image: imageUrl }) // Use the new or existing image URL
           .eq('id', id)
           .select(); // Select the updated data
 

@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem, Category } from '../types';
 
+// Define a type for the form data, including a potential File object for the image
+interface MenuItemFormData extends Omit<MenuItem, 'id'> {
+  imageFile?: File | null; // Add a field for the selected file
+}
+
 interface MenuItemFormProps {
   item?: MenuItem;
   categories: Category[];
-  onSubmit: (item: Omit<MenuItem, 'id'>) => void;
+  // Update onSubmit to potentially accept a File object
+  onSubmit: (itemData: Omit<MenuItem, 'id'>, imageFile?: File | null) => void;
   onCancel: () => void;
 }
 
@@ -14,43 +20,60 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({
   onSubmit,
   onCancel,
 }) => {
-  const [formData, setFormData] = useState<Omit<MenuItem, 'id'>>({
+  const [formData, setFormData] = useState<MenuItemFormData>({
     name: '',
     price: 0,
     description: '',
-    image: '',
+    image: '', // This will still store the URL for existing items
+    imageFile: null, // Initialize imageFile state
     category: '',
   });
-  
+
   useEffect(() => {
     if (item) {
       setFormData({
         name: item.name,
         price: item.price,
         description: item.description,
-        image: item.image,
+        image: item.image, // Load existing image URL
+        imageFile: null, // No file selected initially for existing items
         category: item.category,
       });
+    } else {
+       // Reset form for new items
+       setFormData({
+         name: '',
+         price: 0,
+         description: '',
+         image: '',
+         imageFile: null,
+         category: '',
+       });
     }
   }, [item]);
-  
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    const { name, value } = e.target;
-    
-    if (name === 'price') {
+    const { name, value, type } = e.target;
+
+    if (type === 'file') {
+      const files = (e.target as HTMLInputElement).files;
+      setFormData({ ...formData, imageFile: files ? files[0] : null });
+    } else if (name === 'price') {
       setFormData({ ...formData, [name]: parseFloat(value) || 0 });
     } else {
       setFormData({ ...formData, [name]: value });
     }
   };
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Pass both form data (excluding imageFile) and the imageFile to onSubmit
+    const { imageFile, ...itemData } = formData;
+    onSubmit(itemData, imageFile);
   };
-  
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
@@ -67,7 +90,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-burgundy-500 focus:ring-burgundy-500 p-2 border"
         />
       </div>
-      
+
       <div>
         <label htmlFor="price" className="block text-sm font-medium text-gray-700">
           Price (₹)
@@ -84,7 +107,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-burgundy-500 focus:ring-burgundy-500 p-2 border"
         />
       </div>
-      
+
       <div>
         <label htmlFor="description" className="block text-sm font-medium text-gray-700">
           Description
@@ -98,22 +121,34 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-burgundy-500 focus:ring-burgundy-500 p-2 border"
         />
       </div>
-      
+
       <div>
         <label htmlFor="image" className="block text-sm font-medium text-gray-700">
-          Image URL
+          Image
         </label>
         <input
-          type="url"
+          type="file"
           id="image"
           name="image"
-          value={formData.image}
           onChange={handleChange}
-          required
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-burgundy-500 focus:ring-burgundy-500 p-2 border"
+          // required // Make required only if adding a new item and no image URL exists
+          accept="image/*" // Accept only image files
+          className="mt-1 block w-full text-sm text-gray-500
+            file:mr-4 file:py-2 file:px-4
+            file:rounded-full file:border-0
+            file:text-sm file:font-semibold
+            file:bg-burgundy-50 file:text-burgundy-700
+            hover:file:bg-burgundy-100"
         />
+        {/* Display current image or selected file name */}
+        {item?.image && !formData.imageFile && (
+           <p className="mt-2 text-sm text-gray-500">Current Image: <a href={item.image} target="_blank" rel="noopener noreferrer" className="text-burgundy-600 hover:underline">View Image</a></p>
+        )}
+        {formData.imageFile && (
+           <p className="mt-2 text-sm text-gray-500">Selected File: {formData.imageFile.name}</p>
+        )}
       </div>
-      
+
       <div>
         <label htmlFor="category" className="block text-sm font-medium text-gray-700">
           Category
@@ -134,7 +169,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({
           ))}
         </select>
       </div>
-      
+
       <div className="flex justify-end space-x-3">
         <button
           type="button"

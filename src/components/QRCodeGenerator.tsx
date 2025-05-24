@@ -15,7 +15,7 @@ const QRCodeGenerator: React.FC<QRCodeGeneratorProps> = ({ table }) => {
   return (
     <div className="flex flex-col items-center p-4 bg-white rounded-lg shadow-md">
       <h3 className="text-xl font-semibold mb-1">Table #{table.number}</h3>
-      <p className="text-sm text-gray-500 mb-4">Ajay Sweet House</p>
+      <p className="text-sm text-gray-500 mb-4">Restro-fi</p>
       
       <div className="bg-white p-3 rounded-lg border-2 border-burgundy-100">
         <QRCodeSVG 

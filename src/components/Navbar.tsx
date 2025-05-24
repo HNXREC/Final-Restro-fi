@@ -21,7 +21,7 @@ const Navbar: React.FC = () => {
           <div className="flex items-center">
             <Link to="/" className="flex items-center">
               <Utensils className="h-8 w-8 text-burgundy-600" />
-              <span className="ml-2 text-xl font-bold text-burgundy-700">Ajay Sweet House</span>
+              <span className="ml-2 text-xl font-bold text-burgundy-700">Restro-fi</span>
             </Link>
           </div>
           
